@@ -106,6 +106,49 @@ body {
     transform: translateY(-1px);
 }
 
+/* Floating Admin Button */
+.admin-fab {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #b8860b;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-shadow: 0 8px 24px rgba(184, 134, 11, 0.35);
+    z-index: 1000;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.admin-fab:hover {
+    transform: translateY(-2px);
+    background: #9a7209;
+    box-shadow: 0 12px 28px rgba(184, 134, 11, 0.45);
+}
+
+.admin-fab i {
+    font-size: 20px;
+}
+
+.admin-link {
+    background: #b8860b;
+    color: white !important;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.admin-link:hover {
+    background: #9a7209;
+    color: white !important;
+    transform: translateY(-1px);
+}
+
 /* Hero Banner Section */
 .hero-banner {
     background: linear-gradient(135deg, #f7f3f0 0%, #f0ebe5 100%);
