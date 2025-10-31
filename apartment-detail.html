@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apartment Details - Hostify by Abdullah</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="apartment-styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="logo-container">
+                <img src="assets/logo/log.PNG" alt="Hostify by Abdullah logo" class="logo-img" onclick="window.location.href='index.html'">
+            </div>
+            <nav class="nav">
+                <a href="index.html#listings" class="nav-link">Apartments</a>
+                <a href="index.html#about-host" class="nav-link">About Host</a>
+                <a href="index.html#about-us" class="nav-link">About Us</a>
+                <a href="index.html#contact" class="nav-link">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Apartment Header -->
+        <section class="apartment-header">
+            <div class="container">
+                <div class="breadcrumb">
+                    <a href="index.html">Home</a> > <span id="apartment-breadcrumb">Apartment Details</span>
+                </div>
+                <h1 class="apartment-main-title" id="apartment-title">Loading...</h1>
+                <div class="apartment-location">
+                    <span class="location-icon">📍</span>
+                    <span id="apartment-location">Loading...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Apartment Gallery -->
+        <section class="apartment-gallery">
+            <div class="container">
+                <div class="gallery-grid">
+                    <div class="main-image" onclick="openLightbox(0)">
+                        <div class="placeholder-image-large">
+                            <span>Loading image...</span>
+                        </div>
+                    </div>
+                    <div class="gallery-thumbnails" id="gallery-thumbnails">
+                        <!-- Thumbnails will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Apartment Details -->
+        <section class="apartment-details">
+            <div class="container">
+                <div class="details-grid">
+                    <div class="main-content">
+                        <div class="content-section">
+                            <h2>About this apartment</h2>
+                            <p id="apartment-description">Loading...</p>
+                        </div>
+
+                        <div class="content-section">
+                            <h2>Amenities</h2>
+                            <div class="amenities-grid" id="amenities-grid">
+                                <!-- Amenities will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Booking Section -->
+                    <div class="booking-section">
+                        <div class="booking-card">
+                            <div class="price-section">
+                                <span class="price" id="apartment-price">Loading...</span>
+                                <span class="price-period">per night</span>
+                            </div>
+
+                            <form class="booking-form">
+                                <div class="form-group">
+                                    <label for="check-in">Check-in</label>
+                                    <input type="date" id="check-in" name="checkin" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="check-out">Check-out</label>
+                                    <input type="date" id="check-out" name="checkout" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="guests">Guests</label>
+                                    <select id="guests" name="guests" required>
+                                        <option value="1">1 Guest</option>
+                                        <option value="2">2 Guests</option>
+                                        <option value="3">3 Guests</option>
+                                        <option value="4">4 Guests</option>
+                                        <option value="5">5+ Guests</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="book-now-btn">Book Now</button>
+                                <p class="booking-note">You won't be charged yet</p>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section class="contact">
+            <div class="container">
+                <h2 class="section-title">Contact Us</h2>
+                <div class="contact-content">
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <h3>Email</h3>
+                            <p><a href="mailto:qanitsheikh01@gmail.com">qanitsheikh01@gmail.com</a></p>
+                        </div>
+                        <div class="contact-item">
+                            <h3>Phone</h3>
+                            <p><a href="tel:+923117261758">03117261758</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Lightbox Gallery -->
+    <div id="lightbox" class="lightbox">
+        <div class="lightbox-content">
+            <span class="close-lightbox" onclick="closeLightbox()">&times;</span>
+            <div class="lightbox-image-container">
+                <img id="lightbox-image" src="" alt="Gallery image">
+            </div>
+            <div class="lightbox-controls">
+                <button class="lightbox-prev" onclick="previousImage()">❮</button>
+                <button class="lightbox-next" onclick="nextImage()">❯</button>
+            </div>
+            <div class="lightbox-counter">
+                <span id="lightbox-counter">1 / 1</span>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 Hostify by Abdullah. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="data-manager.js"></script>
+    <script>
+        // Lightbox functionality
+        let currentImageIndex = 0;
+        let apartmentImages = [];
+
+        function openLightbox(index) {
+            if (!window.currentApartment || !window.currentApartment.images) return;
+            
+            apartmentImages = window.currentApartment.images;
+            currentImageIndex = index;
+            showLightboxImage();
+            document.getElementById('lightbox').style.display = 'flex';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').style.display = 'none';
+        }
+
+        function showLightboxImage() {
+            const lightboxImage = document.getElementById('lightbox-image');
+            const counter = document.getElementById('lightbox-counter');
+            
+            if (apartmentImages[currentImageIndex]) {
+                lightboxImage.src = apartmentImages[currentImageIndex];
+                counter.textContent = `${currentImageIndex + 1} / ${apartmentImages.length}`;
+            }
+        }
+
+        function previousImage() {
+            currentImageIndex = (currentImageIndex - 1 + apartmentImages.length) % apartmentImages.length;
+            showLightboxImage();
+        }
+
+        function nextImage() {
+            currentImageIndex = (currentImageIndex + 1) % apartmentImages.length;
+            showLightboxImage();
+        }
+
+        // Close lightbox when clicking outside
+        document.getElementById('lightbox').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeLightbox();
+            }
+        });
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('lightbox').style.display === 'flex') {
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                } else if (e.key === 'ArrowLeft') {
+                    previousImage();
+                } else if (e.key === 'ArrowRight') {
+                    nextImage();
+                }
+            }
+        });
+
+        // Booking form submission
+        document.querySelector('.booking-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Booking functionality will be implemented in the future. For now, please contact us directly.');
+        });
+    </script>
+</body>
+</html>
