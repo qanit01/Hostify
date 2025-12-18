@@ -28,11 +28,46 @@
 }
 
 .login-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.logo-icon-large {
     width: 80px;
     height: 80px;
-    border-radius: 50%;
-    margin-bottom: 1rem;
-    box-shadow: 0 4px 12px rgba(139, 125, 107, 0.2);
+    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3);
+}
+
+.logo-text-large {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+}
+
+.logo-main-large {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: -0.02em;
+}
+
+.logo-sub-large {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 .login-header h1 {
