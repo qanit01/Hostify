@@ -239,7 +239,7 @@ async function loadAdminApartments() {
   }
 
   try {
-    const result = await apiService.getApartments();
+    const result = await apiService.getApartments(true); // Get all apartments including unavailable ones
     
     if (loadingHandler) {
       loadingHandler.hideLoading('apartments-list');
@@ -313,7 +313,7 @@ function initializeLoginPage() {
 async function handleLogin(e) {
   e.preventDefault();
   
-  const email = document.getElementById('username').value;
+  const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
   const container = document.getElementById('login-form');
 

@@ -85,8 +85,12 @@ router.post('/', authenticate, adminOnly, upload.fields([
     if (apartmentData.bedrooms) apartmentData.bedrooms = Number(apartmentData.bedrooms);
     if (apartmentData.bathrooms) apartmentData.bathrooms = Number(apartmentData.bathrooms);
     if (apartmentData.capacity) apartmentData.capacity = Number(apartmentData.capacity);
-    if (apartmentData.isAvailable !== undefined) {
-      apartmentData.isAvailable = apartmentData.isAvailable === 'true' || apartmentData.isAvailable === true;
+    
+    // Handle isAvailable - default to true if not provided
+    if (apartmentData.isAvailable !== undefined && apartmentData.isAvailable !== null && apartmentData.isAvailable !== '') {
+      apartmentData.isAvailable = apartmentData.isAvailable === 'true' || apartmentData.isAvailable === true || apartmentData.isAvailable === 'on';
+    } else {
+      apartmentData.isAvailable = true; // Default to available
     }
 
     const apartment = new Apartment(apartmentData);
@@ -123,9 +127,19 @@ router.post('/', authenticate, adminOnly, upload.fields([
 });
 
 // GET /api/apartments - Get all apartments
+// By default, only returns available apartments for public website
+// Use ?all=true query parameter to get all apartments (for admin panel)
 router.get('/', async (req, res) => {
   try {
-    const apartments = await Apartment.find()
+    let query = {};
+    
+    // By default, only show available apartments (for public website)
+    // Admin panel can pass ?all=true to see all apartments
+    if (req.query.all !== 'true') {
+      query.isAvailable = true;
+    }
+    
+    const apartments = await Apartment.find(query)
       .populate('category', 'name description')
       .sort({ createdAt: -1 });
     res.status(200).json(apartments);

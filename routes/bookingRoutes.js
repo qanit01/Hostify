@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const Apartment = require('../models/Apartment');
-const { authenticate, userOrAdmin, adminOnly } = require('../middleware/auth');
+const { authenticate, adminOnly, optionalAuth } = require('../middleware/auth');
 
-// POST /api/bookings - Create a new booking (User or Admin)
-router.post('/', authenticate, userOrAdmin, async (req, res) => {
+// POST /api/bookings - Create a new booking (Public - no authentication required)
+router.post('/', async (req, res) => {
   try {
     // Verify apartment exists and is available
     const apartment = await Apartment.findById(req.body.apartment);
@@ -32,11 +32,15 @@ router.post('/', authenticate, userOrAdmin, async (req, res) => {
       req.body.totalPrice = apartment.price * nights;
     }
     
-    // Add user information from authenticated user
-    req.body.guestName = req.body.guestName || req.user.name;
-    req.body.guestEmail = req.body.guestEmail || req.user.email;
-    req.body.guestPhone = req.body.guestPhone || req.user.phone || '';
-    req.body.user = req.user.id; // Store user reference
+    // Ensure required guest information is provided
+    if (!req.body.guestName || !req.body.guestEmail || !req.body.guestPhone) {
+      return res.status(400).json({ error: 'Guest name, email, and phone are required' });
+    }
+    
+    // User field is optional - only set if user is authenticated
+    if (req.user) {
+      req.body.user = req.user.id;
+    }
     
     const booking = new Booking(req.body);
     const savedBooking = await booking.save();
@@ -55,14 +59,24 @@ router.post('/', authenticate, userOrAdmin, async (req, res) => {
   }
 });
 
-// GET /api/bookings - Get all bookings (Admin sees all, User sees only their own)
-router.get('/', authenticate, userOrAdmin, async (req, res) => {
+// GET /api/bookings - Get bookings (Admin sees all, public can query by email/phone)
+router.get('/', optionalAuth, async (req, res) => {
   try {
     let query = {};
     
-    // If user is not admin, only show their bookings
-    if (req.user.role !== 'admin') {
-      query.user = req.user.id;
+    // If authenticated admin, show all bookings
+    if (req.user && req.user.role === 'admin') {
+      // Admin sees all - no filter
+    } else {
+      // Public users can query by email or phone to see their bookings
+      if (req.query.email) {
+        query.guestEmail = req.query.email.toLowerCase();
+      } else if (req.query.phone) {
+        query.guestPhone = req.query.phone;
+      } else {
+        // If no query params, return empty (don't show all bookings to public)
+        return res.status(200).json([]);
+      }
     }
     
     const bookings = await Booking.find(query)
@@ -74,19 +88,14 @@ router.get('/', authenticate, userOrAdmin, async (req, res) => {
   }
 });
 
-// GET /api/bookings/:id - Get a single booking by ID (User can only see their own)
-router.get('/:id', authenticate, userOrAdmin, async (req, res) => {
+// GET /api/bookings/:id - Get a single booking by ID (Public - anyone can view by ID)
+router.get('/:id', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
       .populate('apartment', 'title location price bedrooms bathrooms');
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
-    }
-    
-    // Check if user owns this booking or is admin
-    if (req.user.role !== 'admin' && booking.user && booking.user.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied. This is not your booking.' });
     }
     
     res.status(200).json(booking);
@@ -98,18 +107,13 @@ router.get('/:id', authenticate, userOrAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/bookings/:id - Update a booking (User can update own, Admin can update any)
-router.put('/:id', authenticate, userOrAdmin, async (req, res) => {
+// PUT /api/bookings/:id - Update a booking (Admin only)
+router.put('/:id', authenticate, adminOnly, async (req, res) => {
   try {
-    // Check if booking exists and user has permission
+    // Check if booking exists
     const existingBooking = await Booking.findById(req.params.id);
     if (!existingBooking) {
       return res.status(404).json({ error: 'Booking not found' });
-    }
-    
-    // Check if user owns this booking or is admin
-    if (req.user.role !== 'admin' && existingBooking.user && existingBooking.user.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied. You can only update your own bookings.' });
     }
     
     // If apartment is being updated, verify it exists
@@ -142,18 +146,13 @@ router.put('/:id', authenticate, userOrAdmin, async (req, res) => {
   }
 });
 
-// DELETE /api/bookings/:id - Delete a booking (User can delete own, Admin can delete any)
-router.delete('/:id', authenticate, userOrAdmin, async (req, res) => {
+// DELETE /api/bookings/:id - Delete a booking (Admin only)
+router.delete('/:id', authenticate, adminOnly, async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
-    }
-    
-    // Check if user owns this booking or is admin
-    if (req.user.role !== 'admin' && booking.user && booking.user.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied. You can only delete your own bookings.' });
     }
     
     await Booking.findByIdAndDelete(req.params.id);

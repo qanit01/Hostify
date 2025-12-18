@@ -60,6 +60,35 @@ const authorize = (...roles) => {
   };
 };
 
+// Optional authentication middleware - doesn't fail if no token
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          const user = await User.findById(decoded.id).select('-password');
+          
+          if (user && user.isActive) {
+            req.user = user;
+          }
+        } catch (error) {
+          // Invalid token, but continue without user
+        }
+      }
+    }
+    
+    next();
+  } catch (error) {
+    // Continue without authentication
+    next();
+  }
+};
+
 // Admin only middleware
 const adminOnly = authorize('admin');
 
@@ -70,6 +99,7 @@ module.exports = {
   authenticate,
   authorize,
   adminOnly,
-  userOrAdmin
+  userOrAdmin,
+  optionalAuth
 };
 

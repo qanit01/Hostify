@@ -72,6 +72,21 @@
                 </div>
             </div>
 
+            <!-- Category Management Section -->
+            <section id="categories" class="admin-section">
+                <div class="section-header">
+                    <h2>Category Management</h2>
+                    <button class="btn btn-primary" onclick="openAddCategoryModal()">
+                        <i class="fas fa-plus"></i> Add New Category
+                    </button>
+                </div>
+
+                <!-- Categories List -->
+                <div class="categories-list" id="categories-list">
+                    <!-- Categories will be dynamically loaded here -->
+                </div>
+            </section>
+
             <!-- Apartment Management Section -->
             <section id="apartments" class="admin-section">
                 <div class="section-header">
@@ -172,6 +187,30 @@
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="submit-btn">Add Apartment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add/Edit Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="category-modal-title">Add New Category</h2>
+                <button class="close-btn" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <form id="category-form" class="apartment-form">
+                <div class="form-group">
+                    <label for="category-name">Category Name *</label>
+                    <input type="text" id="category-name" name="name" required placeholder="e.g., 2 BHK, Studio, 1 BHK">
+                </div>
+                <div class="form-group">
+                    <label for="category-description">Description</label>
+                    <textarea id="category-description" name="description" rows="3" placeholder="Brief description of this category"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="category-submit-btn">Add Category</button>
                 </div>
             </form>
         </div>

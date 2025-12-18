@@ -1,7 +1,9 @@
 // API Service Layer for Frontend
 // Centralized API communication with loading and error handling
 
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:5000/api';
+// Note: process.env doesn't work in browser, so we use hardcoded URL
+// For production, you can change this or use a build tool
+const API_BASE_URL = 'http://localhost:5000/api';
 
 class ApiService {
   constructor() {
@@ -138,8 +140,9 @@ class ApiService {
   }
 
   // Apartment methods
-  async getApartments() {
-    return this.get('/apartments');
+  async getApartments(all = false) {
+    const endpoint = all ? '/apartments?all=true' : '/apartments';
+    return this.get(endpoint);
   }
 
   async getApartment(id) {

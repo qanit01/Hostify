@@ -10,6 +10,7 @@ class ApartmentManager {
     async init() {
         await this.loadCategories();
         await this.loadApartments();
+        await this.renderCategories();
         this.updateStats();
         this.setupEventListeners();
     }
@@ -28,6 +29,105 @@ class ApartmentManager {
         }
     }
 
+    // Render categories list
+    async renderCategories() {
+        const container = document.getElementById('categories-list');
+        if (!container) return;
+
+        await this.loadCategories();
+
+        if (!this.categories || this.categories.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-tags"></i>
+                    <h3>No Categories Yet</h3>
+                    <p>Create your first category to get started</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = this.categories.map(category => `
+            <div class="category-card" style="padding: 1rem; margin: 0.5rem 0; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h4 style="margin: 0 0 0.5rem 0;">${category.name}</h4>
+                <p style="margin: 0; color: #666;">${category.description || 'No description'}</p>
+            </div>
+        `).join('');
+    }
+
+    // Open add category modal
+    openAddCategoryModal() {
+        document.getElementById('category-modal-title').textContent = 'Add New Category';
+        document.getElementById('category-submit-btn').textContent = 'Add Category';
+        document.getElementById('category-form').reset();
+        document.getElementById('category-modal').style.display = 'block';
+    }
+
+    // Close category modal
+    closeCategoryModal() {
+        document.getElementById('category-modal').style.display = 'none';
+    }
+
+    // Handle category form submission
+    async handleCategorySubmit() {
+        const form = document.getElementById('category-form');
+        const formData = new FormData(form);
+        
+        const categoryData = {
+            name: formData.get('name'),
+            description: formData.get('description') || ''
+        };
+
+        if (!categoryData.name) {
+            if (window.loadingHandler) {
+                window.loadingHandler.showError('category-form', 'Category name is required');
+            } else {
+                alert('Category name is required');
+            }
+            return;
+        }
+
+        if (window.loadingHandler) {
+            window.loadingHandler.showLoading('category-form', 'Creating category...');
+        }
+
+        try {
+            if (!window.apiService) {
+                throw new Error('API Service not loaded');
+            }
+
+            const result = await window.apiService.createCategory(categoryData);
+
+            if (window.loadingHandler) {
+                window.loadingHandler.hideLoading('category-form');
+            }
+
+            if (result.success) {
+                if (window.loadingHandler) {
+                    window.loadingHandler.showSuccess('category-form', 'Category created successfully!');
+                }
+                this.closeCategoryModal();
+                await this.loadCategories();
+                await this.renderCategories();
+                await this.populateCategoryDropdown(); // Update apartment form dropdown
+            } else {
+                if (window.loadingHandler) {
+                    window.loadingHandler.showError('category-form', result.error || 'Failed to create category');
+                } else {
+                    alert(result.error || 'Failed to create category');
+                }
+            }
+        } catch (error) {
+            if (window.loadingHandler) {
+                window.loadingHandler.hideLoading('category-form');
+                window.loadingHandler.showError('category-form', 'Network error. Please try again.');
+            } else {
+                alert('Network error. Please try again.');
+            }
+            console.error('Error creating category:', error);
+        }
+    }
+
     // Load apartments from API
     async loadApartments() {
         const container = document.getElementById('apartments-list');
@@ -42,7 +142,7 @@ class ApartmentManager {
                 throw new Error('API Service not loaded');
             }
 
-            const result = await window.apiService.getApartments();
+            const result = await window.apiService.getApartments(true); // Get all apartments including unavailable ones
 
             if (window.loadingHandler) {
                 window.loadingHandler.hideLoading('apartments-list');
@@ -269,12 +369,21 @@ class ApartmentManager {
 
     // Setup event listeners
     setupEventListeners() {
-        // Form submission
-        const form = document.getElementById('apartment-form');
-        if (form) {
-            form.addEventListener('submit', (e) => {
+        // Apartment form submission
+        const apartmentForm = document.getElementById('apartment-form');
+        if (apartmentForm) {
+            apartmentForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.handleFormSubmit();
+            });
+        }
+
+        // Category form submission
+        const categoryForm = document.getElementById('category-form');
+        if (categoryForm) {
+            categoryForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleCategorySubmit();
             });
         }
 
@@ -282,12 +391,16 @@ class ApartmentManager {
         window.addEventListener('click', (e) => {
             const apartmentModal = document.getElementById('apartment-modal');
             const deleteModal = document.getElementById('delete-modal');
+            const categoryModal = document.getElementById('category-modal');
             
             if (e.target === apartmentModal) {
                 this.closeModal();
             }
             if (e.target === deleteModal) {
                 this.closeDeleteModal();
+            }
+            if (e.target === categoryModal) {
+                this.closeCategoryModal();
             }
         });
     }
@@ -403,6 +516,18 @@ function closeDeleteModal() {
 function confirmDelete() {
     if (window.apartmentManager) {
         window.apartmentManager.confirmDelete();
+    }
+}
+
+function openAddCategoryModal() {
+    if (window.apartmentManager) {
+        window.apartmentManager.openAddCategoryModal();
+    }
+}
+
+function closeCategoryModal() {
+    if (window.apartmentManager) {
+        window.apartmentManager.closeCategoryModal();
     }
 }
 
