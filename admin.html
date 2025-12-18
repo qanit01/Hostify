@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="admin-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="auth.js"></script>
 </head>
 <body>
     <header class="header">
@@ -28,7 +27,7 @@
                 <a href="index.html" class="nav-link">View Website</a>
                 <a href="#apartments" class="nav-link">Manage Apartments</a>
                 <a href="#settings" class="nav-link">Settings</a>
-                <a href="#" class="nav-link logout-btn" onclick="authManager.logout()">
+                <a href="#" class="nav-link logout-btn" onclick="handleLogout()">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
             </nav>
@@ -147,13 +146,27 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="apartment-images">Image URLs (one per line)</label>
-                    <textarea id="apartment-images" name="images" rows="3" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"></textarea>
+                    <label for="apartment-category">Category *</label>
+                    <select id="apartment-category" name="category" required>
+                        <option value="">Select Category</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apartment-is-available">Available</label>
+                    <input type="checkbox" id="apartment-is-available" name="is-available" checked>
                 </div>
 
                 <div class="form-group">
-                    <label for="apartment-main-image">Main Image URL *</label>
-                    <input type="url" id="apartment-main-image" name="mainImage" required>
+                    <label for="apartment-main-image">Main Image *</label>
+                    <input type="file" id="apartment-main-image" name="mainImage" accept="image/*">
+                    <small>Upload main image for the apartment (max 5MB)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="apartment-images">Additional Images</label>
+                    <input type="file" id="apartment-images" name="images" accept="image/*" multiple>
+                    <small>Upload multiple images for gallery (max 10 images, 5MB each)</small>
                 </div>
 
                 <div class="form-actions">
@@ -184,6 +197,22 @@
         </div>
     </div>
 
+    <!-- API Service and Loading Handler -->
+    <script src="utils/apiService.js"></script>
+    <script src="utils/loadingHandler.js"></script>
+    <script src="js/api-integration.js"></script>
+    <script src="js/auth.js"></script>
     <script src="admin.js"></script>
+    <script>
+        // Handle logout
+        async function handleLogout() {
+            if (window.authManager) {
+                await window.authManager.logout();
+            } else if (window.apiService) {
+                await window.apiService.logout();
+                window.location.href = 'login.html';
+            }
+        }
+    </script>
 </body>
 </html>
