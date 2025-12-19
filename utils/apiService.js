@@ -1,17 +1,15 @@
-// API Service Layer for Frontend
-// Centralized API communication with loading and error handling
+// frontend/utils/apiService.js
+// Centralized API service for frontend (DB-driven, production-safe)
 
-// Note: process.env doesn't work in browser, so we use hardcoded URL
-// For production, you can change this or use a build tool
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000';
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
-    this.token = localStorage.getItem('token') || null;
+    this.token = localStorage.getItem('token');
   }
 
-  // Set authentication token
+  // ================= AUTH TOKEN =================
   setToken(token) {
     this.token = token;
     if (token) {
@@ -21,23 +19,26 @@ class ApiService {
     }
   }
 
-  // Get authentication token
   getToken() {
     return this.token || localStorage.getItem('token');
   }
 
-  // Make API request
+  // ================= CORE REQUEST =================
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+
     const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      ...options
+      method: options.method || 'GET',
+      headers: { ...(options.headers || {}) },
+      body: options.body
     };
 
-    // Add token if available
+    // Add JSON header ONLY when body is plain JSON
+    if (config.body && !(config.body instanceof FormData)) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+
+    // Attach JWT token if present
     const token = this.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -45,208 +46,126 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
+
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        return {
+          success: false,
+          error: data.error || 'Request failed'
+        };
       }
 
-      return { success: true, data };
+      return {
+        success: true,
+        data
+      };
     } catch (error) {
-      return { 
-        success: false, 
-        error: error.message || 'Network error occurred' 
+      return {
+        success: false,
+        error: 'Network error'
       };
     }
   }
 
-  // GET request
-  async get(endpoint) {
+  // ================= HTTP METHODS =================
+  get(endpoint) {
     return this.request(endpoint, { method: 'GET' });
   }
 
-  // POST request
-  async post(endpoint, body) {
+  post(endpoint, body) {
     return this.request(endpoint, {
       method: 'POST',
       body: JSON.stringify(body)
     });
   }
 
-  // PUT request
-  async put(endpoint, body) {
+  put(endpoint, body) {
     return this.request(endpoint, {
       method: 'PUT',
       body: JSON.stringify(body)
     });
   }
 
-  // DELETE request
-  async delete(endpoint) {
+  delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  // POST with FormData (for file uploads)
-  async postFormData(endpoint, formData) {
-    const url = `${this.baseURL}${endpoint}`;
-    const config = {
+  postFormData(endpoint, formData) {
+    return this.request(endpoint, {
       method: 'POST',
-      headers: {}
-    };
-
-    // Add token if available
-    const token = this.getToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Don't set Content-Type for FormData, browser will set it with boundary
-    try {
-      const response = await fetch(url, {
-        ...config,
-        body: formData
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      return { 
-        success: false, 
-        error: error.message || 'Network error occurred' 
-      };
-    }
+      body: formData
+    });
   }
 
-  // Auth methods
-  async register(userData) {
-    return this.post('/auth/register', userData);
+  // ================= AUTH =================
+  register(userData) {
+    return this.post('/api/auth/register', userData);
   }
 
   async login(email, password) {
-    return this.post('/auth/login', { email, password });
+    const result = await this.post('/api/auth/login', { email, password });
+
+    if (result.success && result.data.token) {
+      this.setToken(result.data.token);
+    }
+
+    return result;
   }
 
-  async getCurrentUser() {
-    return this.get('/auth/me');
+  getCurrentUser() {
+    return this.get('/api/auth/me');
   }
 
-  async logout() {
+  logout() {
     this.setToken(null);
     return { success: true };
   }
 
-  // Apartment methods
-  async getApartments(all = false) {
-    const endpoint = all ? '/apartments?all=true' : '/apartments';
-    return this.get(endpoint);
+  // ================= APARTMENTS =================
+  getApartments(all = false) {
+    return this.get(`/api/apartments${all ? '?all=true' : ''}`);
   }
 
-  async getApartment(id) {
-    return this.get(`/apartments/${id}`);
+  getApartment(id) {
+    return this.get(`/api/apartments/${id}`);
   }
 
-  async createApartment(apartmentData, files) {
+  createApartment(apartmentData, files = {}) {
     const formData = new FormData();
-    
-    // Add text fields
+
     Object.keys(apartmentData).forEach(key => {
-      if (key !== 'mainImage' && key !== 'images') {
+      if (apartmentData[key] !== undefined) {
         formData.append(key, apartmentData[key]);
       }
     });
 
-    // Add files
     if (files.mainImage) {
       formData.append('mainImage', files.mainImage);
     }
-    if (files.images && files.images.length > 0) {
-      files.images.forEach(file => {
-        formData.append('images', file);
-      });
+
+    if (Array.isArray(files.images)) {
+      files.images.forEach(img => formData.append('images', img));
     }
 
-    return this.postFormData('/apartments', formData);
+    return this.postFormData('/api/apartments', formData);
   }
 
-  async updateApartment(id, apartmentData) {
-    return this.put(`/apartments/${id}`, apartmentData);
+  deleteApartment(id, cleanup = false) {
+    return this.delete(
+      `/api/apartments/${id}${cleanup ? '?cleanup=true' : ''}`
+    );
   }
 
-  async deleteApartment(id, cleanup = false) {
-    return this.delete(`/apartments/${id}${cleanup ? '?cleanup=true' : ''}`);
+  // ================= BOOKINGS =================
+  getBookings() {
+    return this.get('/api/bookings');
   }
 
-  // Booking methods
-  async getBookings() {
-    return this.get('/bookings');
-  }
-
-  async getBooking(id) {
-    return this.get(`/bookings/${id}`);
-  }
-
-  async createBooking(bookingData) {
-    return this.post('/bookings', bookingData);
-  }
-
-  async updateBooking(id, bookingData) {
-    return this.put(`/bookings/${id}`, bookingData);
-  }
-
-  async deleteBooking(id) {
-    return this.delete(`/bookings/${id}`);
-  }
-
-  // Category methods
-  async getCategories() {
-    return this.get('/categories');
-  }
-
-  async getCategory(id) {
-    return this.get(`/categories/${id}`);
-  }
-
-  async createCategory(categoryData) {
-    return this.post('/categories', categoryData);
-  }
-
-  async updateCategory(id, categoryData) {
-    return this.put(`/categories/${id}`, categoryData);
-  }
-
-  async deleteCategory(id) {
-    return this.delete(`/categories/${id}`);
-  }
-
-  // Search methods
-  async searchApartments(filters) {
-    const queryString = new URLSearchParams(filters).toString();
-    return this.get(`/search?${queryString}`);
-  }
-
-  // Media methods
-  async uploadImage(file) {
-    const formData = new FormData();
-    formData.append('image', file);
-    return this.postFormData('/media/upload', formData);
-  }
-
-  async uploadMultipleImages(files) {
-    const formData = new FormData();
-    files.forEach(file => {
-      formData.append('images', file);
-    });
-    return this.postFormData('/media/upload-multiple', formData);
+  createBooking(bookingData) {
+    return this.post('/api/bookings', bookingData);
   }
 }
 
-// Export singleton instance
-const apiService = new ApiService();
-window.apiService = apiService; // Make available globally
-
-module.exports = apiService;
-
+// Global singleton (important for plain JS frontend)
+window.apiService = new ApiService();

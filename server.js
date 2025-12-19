@@ -6,28 +6,48 @@ require('dotenv').config();
 // Initialize Express app
 const app = express();
 
+// ==============================
 // Middleware
-app.use(cors()); // Enable CORS for frontend
+// ==============================
+app.use(cors({
+  origin: '*', // allow frontend access (adjust in production)
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/mern-api-assignment';
+// ==============================
+// Environment Variables
+// ==============================
 const PORT = process.env.PORT || 5000;
+const MONGODB_URI =
+  process.env.MONGODB_URI || 'mongodb://localhost:27017/mern-api-assignment';
 
-mongoose.connect(MONGODB_URI)
+// ==============================
+// MongoDB Connection
+// ==============================
+mongoose
+  .connect(MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
   .then(() => {
     console.log('✅ MongoDB connected successfully');
+    console.log(`📦 Database Host: ${mongoose.connection.host}`);
   })
   .catch((error) => {
-    console.error('❌ MongoDB connection error:', error.message);
-    process.exit(1);
+    console.error('❌ MongoDB connection failed:', error.message);
+    process.exit(1); // Stop server if DB fails
   });
 
-// Serve uploaded files statically
+// ==============================
+// Static Files (Uploads)
+// ==============================
 app.use('/uploads', express.static('uploads'));
 
-// Routes
+// ==============================
+// API Routes
+// ==============================
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/apartments', require('./routes/apartmentRoutes'));
@@ -35,10 +55,13 @@ app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/media', require('./routes/mediaRoutes'));
 app.use('/api/search', require('./routes/searchRoutes'));
 
-// Root route
+// ==============================
+// Root Route (Health Check)
+// ==============================
 app.get('/', (req, res) => {
-  res.json({
-    message: 'Hostify by Abdullah - Apartment Booking API',
+  res.status(200).json({
+    success: true,
+    message: 'Hostify Apartment Booking API is running',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
@@ -51,20 +74,31 @@ app.get('/', (req, res) => {
   });
 });
 
-// 404 handler
+// ==============================
+// 404 Handler
+// ==============================
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  res.status(404).json({
+    success: false,
+    error: 'Route not found'
+  });
 });
 
-// Error handling middleware
+// ==============================
+// Global Error Handler
+// ==============================
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  console.error('🔥 Server Error:', err.stack);
+  res.status(500).json({
+    success: false,
+    error: 'Internal Server Error'
+  });
 });
 
-// Start server
+// ==============================
+// Start Server
+// ==============================
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 API available at http://localhost:${PORT}`);
+  console.log('🚀 Server started successfully');
+  console.log(`🌐 API running at http://localhost:${PORT}`);
 });
-

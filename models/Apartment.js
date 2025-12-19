@@ -25,6 +25,10 @@ const apartmentSchema = new mongoose.Schema({
     required: [true, 'Price per night is required'],
     min: [0, 'Price cannot be negative']
   },
+  // Backwards-compatible alias for pricePerNight
+  pricePerNight: {
+    type: Number
+  },
   bedrooms: {
     type: Number,
     required: [true, 'Number of bedrooms is required'],
@@ -39,6 +43,10 @@ const apartmentSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'Guest capacity is required'],
     min: [1, 'Capacity must be at least 1']
+  },
+  // Backwards-compatible alias for maxGuests
+  maxGuests: {
+    type: Number
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
@@ -55,6 +63,16 @@ const apartmentSchema = new mongoose.Schema({
   },
   images: {
     type: [String],
+    default: []
+  },
+  // Array of booked date ranges to block availability (each item: { start: Date, end: Date })
+  bookedDates: {
+    type: [
+      {
+        start: { type: Date, required: true },
+        end: { type: Date, required: true }
+      }
+    ],
     default: []
   },
   mainImage: {

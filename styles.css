@@ -398,6 +398,32 @@ body {
 
 .feature {
     background: var(--bg-section);
+
+/* Responsive tweaks - Mobile first adjustments */
+@media (max-width: 768px) {
+    .header .container { padding: 0.75rem 16px; }
+    .logo-main { font-size: 1.25rem; }
+    .nav { display: none; }
+    .hero-banner-placeholder { grid-template-columns: 1fr; padding: 2rem 16px; min-height: 420px; }
+    .banner-text h2 { font-size: 1.75rem; }
+    .apartments-grid { grid-template-columns: 1fr; gap: 1rem; }
+    .apartment-image { height: 200px; }
+    .container { padding: 0 16px; }
+    .apartment-content { padding: 1rem; }
+    .booking-section { margin-top: 1.5rem; }
+    .booking-card { padding: 1rem; }
+    .booking-form .form-group { margin-bottom: 0.75rem; }
+    .book-now-btn { width: 100%; padding: 0.9rem; font-size: 1rem; }
+    .admin-fab { right: 16px; bottom: 16px; width: 48px; height: 48px; }
+}
+
+@media (max-width: 420px) {
+    .logo-icon { width: 44px; height: 44px; }
+    .banner-text h2 { font-size: 1.4rem; }
+    .banner-text p { font-size: 1rem; }
+    .apartment-image { height: 160px; }
+    .apartment-card { border-radius: 12px; }
+}
     color: var(--text-dark);
     padding: 0.5rem 1rem;
     border-radius: 6px;

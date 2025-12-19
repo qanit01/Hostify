@@ -24,12 +24,29 @@ router.post('/', async (req, res) => {
       });
     }
     
+    // Determine check-in/check-out fields (support multiple naming conventions)
+    const rawCheckIn = req.body.checkIn || req.body.checkInDate;
+    const rawCheckOut = req.body.checkOut || req.body.checkOutDate;
+
+    if (!rawCheckIn || !rawCheckOut) {
+      return res.status(400).json({ error: 'Check-in and check-out dates are required' });
+    }
+
+    const checkIn = new Date(rawCheckIn);
+    const checkOut = new Date(rawCheckOut);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime()) || checkOut <= checkIn) {
+      return res.status(400).json({ error: 'Invalid check-in/check-out dates' });
+    }
+
+    // Calculate number of nights
+    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+    req.body.numberOfNights = nights;
+
     // Calculate total price if not provided
     if (!req.body.totalPrice) {
-      const checkIn = new Date(req.body.checkIn);
-      const checkOut = new Date(req.body.checkOut);
-      const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-      req.body.totalPrice = apartment.price * nights;
+      const pricePerNight = apartment.pricePerNight || apartment.price || 0;
+      req.body.totalPrice = pricePerNight * nights;
     }
     
     // Ensure required guest information is provided
@@ -42,11 +59,63 @@ router.post('/', async (req, res) => {
       req.body.user = req.user.id;
     }
     
+    // Check for overlapping booked dates recorded on apartment
+    const newStart = new Date(checkIn.setHours(0,0,0,0));
+    const newEnd = new Date(checkOut.setHours(0,0,0,0));
+
+    const isOverlapping = (ranges, start, end) => {
+      if (!Array.isArray(ranges)) return false;
+      return ranges.some(r => {
+        const rs = new Date(r.start).setHours(0,0,0,0);
+        const re = new Date(r.end).setHours(0,0,0,0);
+        return (rs <= end && re >= start);
+      });
+    };
+
+    if (isOverlapping(apartment.bookedDates, newStart, newEnd)) {
+      return res.status(400).json({ error: 'Selected dates overlap with existing bookings' });
+    }
+
+    // Also double-check against bookings collection for same apartment (non-cancelled)
+    const overlappingBooking = await Booking.findOne({
+      apartment: apartment._id,
+      status: { $ne: 'cancelled' },
+      $or: [
+        { $and: [ { checkIn: { $lte: newEnd } }, { checkOut: { $gte: newStart } } ] },
+        { $and: [ { checkInDate: { $lte: newEnd } }, { checkOutDate: { $gte: newStart } } ] }
+      ]
+    });
+
+    if (overlappingBooking) {
+      return res.status(400).json({ error: 'Selected dates overlap with another booking' });
+    }
+
+    // Ensure guests count field
+    const guests = Number(req.body.guests || req.body.numberOfGuests || 1);
+    if (guests > (apartment.capacity || apartment.maxGuests || 0)) {
+      return res.status(400).json({ error: `Number of guests exceeds apartment capacity. Maximum: ${apartment.capacity || apartment.maxGuests}` });
+    }
+
+    // Attach normalized date fields to request body for saving
+    req.body.checkIn = newStart;
+    req.body.checkOut = newEnd;
+    req.body.checkInDate = newStart;
+    req.body.checkOutDate = newEnd;
+    req.body.guests = guests;
+
+    if (req.user) {
+      req.body.user = req.user.id;
+    }
+
     const booking = new Booking(req.body);
     const savedBooking = await booking.save();
-    
+
+    // Push blocked date range to apartment and save
+    apartment.bookedDates.push({ start: newStart, end: newEnd });
+    await apartment.save();
+
     // Populate apartment for response
-    await savedBooking.populate('apartment', 'title location price');
+    await savedBooking.populate('apartment', 'title location price pricePerNight');
     res.status(201).json(savedBooking);
   } catch (error) {
     if (error.name === 'ValidationError') {

@@ -7,30 +7,29 @@ const bookingSchema = new mongoose.Schema({
     ref: 'Apartment',
     required: [true, 'Apartment is required']
   },
+  // Support both checkIn/checkOut and checkInDate/checkOutDate naming
   checkIn: {
-    type: Date,
-    required: [true, 'Check-in date is required'],
-    validate: {
-      validator: function(value) {
-        return value >= new Date().setHours(0, 0, 0, 0);
-      },
-      message: 'Check-in date must be today or in the future'
-    }
+    type: Date
   },
   checkOut: {
-    type: Date,
-    required: [true, 'Check-out date is required'],
-    validate: {
-      validator: function(value) {
-        return value > this.checkIn;
-      },
-      message: 'Check-out date must be after check-in date'
-    }
+    type: Date
+  },
+  checkInDate: {
+    type: Date
+  },
+  checkOutDate: {
+    type: Date
   },
   guests: {
     type: Number,
     required: [true, 'Number of guests is required'],
     min: [1, 'At least 1 guest is required']
+  },
+  // Number of nights computed/stored
+  numberOfNights: {
+    type: Number,
+    min: [1, 'Must be at least 1 night'],
+    required: false
   },
   totalPrice: {
     type: Number,

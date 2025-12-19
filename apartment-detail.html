@@ -89,7 +89,7 @@
                                 <span class="price-period">per night</span>
                             </div>
 
-                            <form class="booking-form">
+                            <form class="booking-form" id="booking-form">
                                 <div class="form-group">
                                     <label for="check-in">Check-in</label>
                                     <input type="date" id="check-in" name="checkin" required>
@@ -108,8 +108,25 @@
                                         <option value="5">5+ Guests</option>
                                     </select>
                                 </div>
-                                <button type="submit" class="book-now-btn">Book Now</button>
+                                <div class="form-group">
+                                    <label for="guest-name">Your Name</label>
+                                    <input type="text" id="guest-name" name="guestName" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="guest-email">Email</label>
+                                    <input type="email" id="guest-email" name="guestEmail" required />
+                                </div>
+                                <div class="form-group">
+                                    <label for="guest-phone">Phone</label>
+                                    <input type="tel" id="guest-phone" name="guestPhone" required />
+                                </div>
+                                <div class="form-row">
+                                    <div class="nights">Nights: <span id="nights-count">0</span></div>
+                                    <div class="total">Total: <span id="total-price">0</span></div>
+                                </div>
+                                <button type="submit" class="book-now-btn" id="book-now">Book Now</button>
                                 <p class="booking-note">You won't be charged yet</p>
+                                <div id="booking-message" role="status" aria-live="polite"></div>
                             </form>
                         </div>
                     </div>
@@ -167,7 +184,8 @@
     <!-- API Service and Loading Handler -->
     <script src="utils/apiService.js"></script>
     <script src="utils/loadingHandler.js"></script>
-    <script src="js/api-integration.js"></script>
+    <script src="js/apartment.js"></script>
+
     <script>
         // Lightbox functionality
         let currentImageIndex = 0;
@@ -226,11 +244,159 @@
             }
         });
 
-        // Booking form submission
-        document.querySelector('.booking-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            alert('Booking functionality will be implemented in the future. For now, please contact us directly.');
-        });
+        // Booking form logic: fetch apartment, disable overlapping ranges on submit, calculate nights/total
+        (function() {
+            const params = new URLSearchParams(window.location.search);
+            const apartmentId = params.get('id');
+            const checkInInput = document.getElementById('check-in');
+            const checkOutInput = document.getElementById('check-out');
+            const guestsSelect = document.getElementById('guests');
+            const nightsCount = document.getElementById('nights-count');
+            const totalPriceEl = document.getElementById('total-price');
+            const bookingForm = document.getElementById('booking-form');
+            const bookingMessage = document.getElementById('booking-message');
+
+            let apartmentData = null;
+            let blockedRanges = [];
+
+            function setMessage(msg, isError) {
+                bookingMessage.textContent = msg;
+                bookingMessage.style.color = isError ? 'crimson' : 'green';
+            }
+
+            async function loadApartment() {
+                if (!apartmentId) return;
+                const result = await window.apiService.getApartment(apartmentId);
+                if (!result.success) {
+                    setMessage('Failed to load apartment details', true);
+                    return;
+                }
+                apartmentData = result.data;
+                window.currentApartment = apartmentData;
+
+                // Populate UI
+                document.getElementById('apartment-title').textContent = apartmentData.title || '';
+                document.getElementById('apartment-location').textContent = apartmentData.location || '';
+                document.getElementById('apartment-description').textContent = apartmentData.description || '';
+                document.getElementById('apartment-price').textContent = (apartmentData.pricePerNight || apartmentData.price || 0).toLocaleString();
+
+                // Images
+                const thumbnails = document.getElementById('gallery-thumbnails');
+                if (apartmentData.images && apartmentData.images.length > 0) {
+                    thumbnails.innerHTML = apartmentData.images.map((src, i) => `
+                        <div class="thumb" onclick="openLightbox(${i})"><img src="${src}" alt="thumb"></div>
+                    `).join('');
+                }
+
+                // Blocked ranges
+                blockedRanges = apartmentData.bookedDates || [];
+            }
+
+            function datesOverlap(startA, endA, startB, endB) {
+                return (startA <= endB && endA >= startB);
+            }
+
+            function computeNightsAndTotal() {
+                const ci = new Date(checkInInput.value);
+                const co = new Date(checkOutInput.value);
+                if (!checkInInput.value || !checkOutInput.value) return;
+                const nights = Math.ceil((co - ci) / (1000*60*60*24));
+                nightsCount.textContent = nights > 0 ? nights : 0;
+                const pricePerNight = apartmentData ? (apartmentData.pricePerNight || apartmentData.price || 0) : 0;
+                totalPriceEl.textContent = nights > 0 ? `PKR ${ (pricePerNight * nights).toLocaleString() }` : 'PKR 0';
+            }
+
+            function isRangeBlocked(startStr, endStr) {
+                const start = new Date(startStr).setHours(0,0,0,0);
+                const end = new Date(endStr).setHours(0,0,0,0);
+                return blockedRanges.some(r => {
+                    const rs = new Date(r.start).setHours(0,0,0,0);
+                    const re = new Date(r.end).setHours(0,0,0,0);
+                    return datesOverlap(rs, re, start, end);
+                });
+            }
+
+            checkInInput.addEventListener('change', computeNightsAndTotal);
+            checkOutInput.addEventListener('change', computeNightsAndTotal);
+
+            bookingForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                setMessage('', false);
+
+                if (!apartmentData) {
+                    setMessage('Apartment data not loaded', true);
+                    return;
+                }
+
+                const checkIn = checkInInput.value;
+                const checkOut = checkOutInput.value;
+                const guests = Number(guestsSelect.value || 1);
+                const guestName = document.getElementById('guest-name').value.trim();
+                const guestEmail = document.getElementById('guest-email').value.trim();
+                const guestPhone = document.getElementById('guest-phone').value.trim();
+
+                if (!checkIn || !checkOut) {
+                    setMessage('Please select check-in and check-out dates', true);
+                    return;
+                }
+
+                if (new Date(checkOut) <= new Date(checkIn)) {
+                    setMessage('Check-out must be after check-in', true);
+                    return;
+                }
+
+                if (isRangeBlocked(checkIn, checkOut)) {
+                    setMessage('Selected dates overlap with existing bookings. Please choose different dates.', true);
+                    return;
+                }
+
+                if (guests > (apartmentData.capacity || apartmentData.maxGuests || 0)) {
+                    setMessage(`Guest count exceeds capacity (${apartmentData.capacity || apartmentData.maxGuests})`, true);
+                    return;
+                }
+
+                if (!guestName || !guestEmail || !guestPhone) {
+                    setMessage('Please provide your name, email and phone', true);
+                    return;
+                }
+
+                // Show loading state
+                const submitBtn = document.getElementById('book-now');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Booking...';
+
+                try {
+                    const bookingPayload = {
+                        apartment: apartmentId,
+                        checkIn: checkIn,
+                        checkOut: checkOut,
+                        guests: guests,
+                        guestName: guestName,
+                        guestEmail: guestEmail,
+                        guestPhone: guestPhone
+                    };
+
+                    const result = await window.apiService.createBooking(bookingPayload);
+                    if (result.success) {
+                        setMessage('Booking confirmed. You will be contacted shortly.', false);
+                        // Update blockedRanges so UI reflects newly booked dates without refresh
+                        blockedRanges.push({ start: checkIn, end: checkOut });
+                        bookingForm.reset();
+                        computeNightsAndTotal();
+                    } else {
+                        setMessage(result.error || 'Failed to create booking', true);
+                    }
+                } catch (err) {
+                    setMessage('Network error. Please try again.', true);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Book Now';
+                }
+            });
+
+            // Initial load
+            loadApartment();
+        })();
     </script>
 </body>
 </html>

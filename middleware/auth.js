@@ -1,58 +1,114 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// JWT Authentication Middleware
+// =====================================
+// Helper: Extract Bearer Token
+// =====================================
+const getTokenFromHeader = (req) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  return authHeader.split(' ')[1];
+};
+
+// =====================================
+// Mandatory Authentication Middleware
+// =====================================
 const authenticate = async (req, res, next) => {
   try {
-    // Get token from header
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided, authorization denied' });
-    }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = getTokenFromHeader(req);
 
     if (!token) {
-      return res.status(401).json({ error: 'No token provided, authorization denied' });
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication token missing'
+      });
     }
 
+    let decoded;
     try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      // Get user from token
-      const user = await User.findById(decoded.id).select('-password');
-      
-      if (!user) {
-        return res.status(401).json({ error: 'User not found' });
-      }
-
-      if (!user.isActive) {
-        return res.status(401).json({ error: 'User account is deactivated' });
-      }
-
-      // Attach user to request
-      req.user = user;
-      next();
-    } catch (error) {
-      return res.status(401).json({ error: 'Invalid token' });
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid or expired token'
+      });
     }
+
+    const user = await User.findById(decoded.id).select('-password');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: 'User account is deactivated'
+      });
+    }
+
+    req.user = user;
+    next();
   } catch (error) {
-    res.status(500).json({ error: 'Authentication error: ' + error.message });
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
   }
 };
 
-// Role-based authorization middleware
+// =====================================
+// Optional Authentication Middleware
+// (Does NOT block public routes)
+// =====================================
+const optionalAuth = async (req, res, next) => {
+  try {
+    const token = getTokenFromHeader(req);
+
+    if (!token) {
+      return next();
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('-password');
+
+      if (user && user.isActive) {
+        req.user = user;
+      }
+    } catch (err) {
+      // Ignore invalid token for optional auth
+    }
+
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
+// =====================================
+// Role-Based Authorization
+// =====================================
 const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
+      return res.status(401).json({
+        success: false,
+        error: 'Authentication required'
+      });
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
-        error: `Access denied. Required role: ${roles.join(' or ')}` 
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
       });
     }
 
@@ -60,46 +116,17 @@ const authorize = (...roles) => {
   };
 };
 
-// Optional authentication middleware - doesn't fail if no token
-const optionalAuth = async (req, res, next) => {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          const user = await User.findById(decoded.id).select('-password');
-          
-          if (user && user.isActive) {
-            req.user = user;
-          }
-        } catch (error) {
-          // Invalid token, but continue without user
-        }
-      }
-    }
-    
-    next();
-  } catch (error) {
-    // Continue without authentication
-    next();
-  }
-};
-
-// Admin only middleware
+// =====================================
+// Role Shortcuts
+// =====================================
 const adminOnly = authorize('admin');
-
-// User or Admin middleware
 const userOrAdmin = authorize('user', 'admin');
 
+// =====================================
 module.exports = {
   authenticate,
+  optionalAuth,
   authorize,
   adminOnly,
-  userOrAdmin,
-  optionalAuth
+  userOrAdmin
 };
-
